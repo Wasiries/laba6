@@ -13,6 +13,7 @@ using namespace std;
 
 float const xmax = 10, xmin = -1, ymax = 10, ymin = -1, delta = 0.2, eps = 0.05, EPS = 1e-9;
 int width = 800, height = 800, num = 0, len = 0;
+bool showable = false;
 
 
 double random(double min_, double max_) {
@@ -60,13 +61,39 @@ double scal(Edge first, Edge second) {
 }
 
 
-//using Polygon = vector<Point>;
-
-
 vector<Point> hull;
 vector<Point> points;
 
-void addPoint(Point point) {
+void show_points() {
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_POINTS);
+    for (int i = 0; i < num; i++) {
+        glVertex2f(points[i].x, points[i].y);
+    }
+    glEnd();
+}
+
+void show_hull() {
+    if (showable) {
+        glColor3f(1.0, 1.0, 1.0);
+        glBegin(GL_LINES);
+        for (int i = 0; i < len; i++) {
+            glVertex2f(hull[i].x, hull[i].y);
+            glVertex2f(hull[(i + 1) % len].x, hull[(i + 1) % len].y);
+        }
+        glEnd();
+    }
+}
+
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    show_hull();
+    show_points();
+    glFlush();
+}
+
+void add_point(Point point) {
+    showable = false;
     points.push_back(point);
     num++;
     if (point.x >= further.x) {
@@ -75,84 +102,100 @@ void addPoint(Point point) {
         }
     }
 }
-void clearPoints() {
+void clear_points() {
     points = vector<Point>();
     num = 0;
 }
-void addRandom() {
-    addPoint(Point(random(xmin, xmax), random(ymin, ymax)));
+void clear_hull() {
+    len = 0;
+    hull = vector<Point>();
+    showable = false;
+}
+void clear_all() {
+    clear_points();
+    clear_hull();
+}
+void add_random() {
+    add_point(Point(random(xmin, xmax), random(ymin, ymax)));
 }
 
-//Point previous = further;
-//Point current;
-//int counter = 0;
-//while (true) {
-//    Point temp;
-//    for (int i = 0; i < num; i++) {
-//        current = points[i];
-//        bool result = true;
-//        for (int j = 0; j < num; j++) {
-//            if (pseu(Edge(previous, current), Edge(previous, points[j])) > 0.0) {
-//                result = false;
-//                continue;
-//            }
-//        }
-//        if (current.x == previous.x and current.y == previous.y) {
-//            continue;
-//        }
-//        if (result == true) {
-//            previous = current;
-//            hull.push_back(current);
-//            len++;
-//            counter++;
-//            break;
-//        }
-//    } 
-//    if (current.x == further.x and current.y == further.y and counter != 0) {
-//        break;
-//    }
-//}
-
-void makeHull() {
+void make_hull() {
     Point previous = further;
-    hull.push_back(further);
-    len = 1;
-    Point current = further;
+    Point current;
     int counter = 0;
-    do {
-        Point temp = current;
-        double ps = pseu(Edge(current, temp), Edge(current, points[0]));
+    while (true) {
+
         for (int i = 0; i < num; i++) {
-            if (points[i].x == current.x and points[i].y == current.y) {
+            current = points[i];
+            bool result = true;
+            for (int j = 0; j < num; j++) {
+                if (pseu(Edge(previous, current), Edge(previous, points[j])) > 0.0) {
+                    result = false;
+                    break;
+                }
+            }
+            if (current.x == previous.x and current.y == previous.y) {
                 continue;
             }
-            if (pseu(Edge(current, temp), Edge(current, points[i])) <= ps) {
-                ps = pseu(Edge(current, temp), Edge(current, points[i]));
-                temp = points[i];
+            if (result == true) {
+                previous = current;
+                hull.push_back(current);
+                len++;
+                counter++;
+                break;
             }
         }
-        previous = current;
-        current = temp;
-        hull.push_back(current);
-        len++;
-    } while (current.x == further.x and current.y == further.y);
+        if (current.x == further.x and current.y == further.y and counter != 0) {
+            break;
+        }
+    }
 }
 
 
-int main() {
-    addPoint(Point(1, 1));
-    addPoint(Point(2, 4));
-    addPoint(Point(3, 6));
-    addPoint(Point(4, 4));
-    addPoint(Point(6, 7));
-    addPoint(Point(8, 3));
-    addPoint(Point(6, 1));
-    addPoint(Point(4, 2));
-    addPoint(Point(1, 1));
-    addPoint(Point(6, 3));
-    addPoint(Point(8, 6));
-    makeHull();
-    for (int i = 0; i < len; i++) {
-        cout << hull[i].x << "\t" << hull[i].y << "\n";
+void mouse(int button, int state, int x, int y) {
+    if (state == GLUT_DOWN) {
+        if (button == GLUT_LEFT_BUTTON) {
+            add_point(convert(x, y));
+            clear_hull();
+        }
+        if (button == GLUT_RIGHT_BUTTON) {
+            clear_all();
+        }
     }
+    display();
+}
+
+void keyboard(unsigned char key, int x, int y) {
+    if (key == 'f') {
+        make_hull();
+        showable = true;
+    }
+    display();
+}
+
+
+void init(void) {
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowSize(width, height);
+    glutInitWindowPosition(50, 10);
+    glutCreateWindow("Okna 11");
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_POINT_SMOOTH);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(xmin, xmax, ymin, ymax);
+    glPointSize(8);
+    glLineWidth(3);
+    glClearColor(0.2, 0.3, 0.9, 1.0);
+}
+
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    init();
+    glutDisplayFunc(display);
+    glutKeyboardFunc(keyboard);
+    glutMouseFunc(mouse);
+    glutMainLoop();
+    return 0;
 }
